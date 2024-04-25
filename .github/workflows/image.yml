@@ -52,12 +52,9 @@ jobs:
         with:
           context: .
           platforms: |
-            linux/arm64
             linux/amd64
-            linux/arm/v8
-            linux/arm/v7
           push: true
           provenance: false
           tags: |
-            devzwf/pihole-dot-doh:latest
-            devzwf/pihole-dot-doh:${{ steps.latest-tag.outputs.release }}
+            frankebob/pihole-dot-doh:latest
+            frankebob/pihole-dot-doh:${{ steps.latest-tag.outputs.release }}
