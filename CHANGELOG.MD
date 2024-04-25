@@ -2,6 +2,9 @@
 
 All major changes to this project will be documented here.
 
+## 2024-04-25
+- Updating Cloudflared to version 2024.4.1
+
 ## 2024-03-24
 - Adding Unbound 
 - Update Readme 
