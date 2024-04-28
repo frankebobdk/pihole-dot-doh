@@ -61,6 +61,7 @@ RUN apt-get update && apt-get install -y \
     libunbound-dev \
     libuv1-dev:amd64 \
     wget \
+    g++ \
     && rm -rf /var/lib/apt/lists/*
 
 RUN useradd -M stubby && usermod -L stubby && usermod -a -G stubby stubby
@@ -70,8 +71,6 @@ WORKDIR /tmp
 RUN wget https://github.com/Kitware/CMake/releases/download/v3.20.0/cmake-3.20.0.tar.gz && \
     tar -zxvf cmake-3.20.0.tar.gz && \
     cd cmake-3.20.0 && \
-    export CXX=g++ && \
-    export CXXFLAGS=-std=c++11 && \
     ./bootstrap -- -DCMAKE_CXX_FLAGS=-std=c++11 && \
     make -j$(nproc) && \
     make install && \
@@ -113,4 +112,4 @@ RUN groupadd unbound \
 
 VOLUME ["/config"]
 
-RUN echo "$(date "+%d.%m.%Y %T") Built from ${FRM} with tag ${TAG}" >> /build_date.info
+RUN echo "$(date "+%d.%m.%Y %T")
