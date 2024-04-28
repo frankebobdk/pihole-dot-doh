@@ -1,4 +1,4 @@
-name: Image buid
+name: Image build
 
 on:
   schedule:
