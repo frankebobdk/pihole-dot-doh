@@ -70,7 +70,8 @@ WORKDIR /tmp
 RUN wget https://github.com/Kitware/CMake/releases/download/v3.20.0/cmake-3.20.0.tar.gz && \
     tar -zxvf cmake-3.20.0.tar.gz && \
     cd cmake-3.20.0 && \
-    export CXX=g++ && \ 
+    export CXX=g++ && \
+    export CXXFLAGS=-std=c++11 && \
     ./bootstrap && \
     make -j$(nproc) && \
     make install && \
