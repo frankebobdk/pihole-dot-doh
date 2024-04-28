@@ -11,7 +11,7 @@ WORKDIR /tmp/src
 
 RUN build_deps="curl gcc libc-dev libevent-dev libexpat1-dev libnghttp2-dev make libssl-dev" && \
     set -x && \
-    DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y --no-install-recommends \
+    apt-get update && apt-get install -y --no-install-recommends \
       $build_deps \
       bsdmainutils \
       ca-certificates \
@@ -46,6 +46,32 @@ RUN build_deps="curl gcc libc-dev libevent-dev libexpat1-dev libnghttp2-dev make
         /var/tmp/* \
         /var/lib/apt/lists/*
 
+FROM debian:bullseye as stubby_builder
+
+RUN apt-get update && apt-get install -y \
+    libyaml-dev \
+    libuv1-dev \
+    check \
+    git \
+    cmake \
+    libidn2-dev \
+    libsystemd-dev \
+    libev-dev \
+    libssl-dev \
+    libunbound-dev \
+    libuv1-dev:amd64
+
+RUN useradd -M stubby && usermod -L stubby && usermod -a -G stubby stubby
+
+RUN git clone https://github.com/getdnsapi/getdns.git /tmp/getdns
+WORKDIR /tmp/getdns
+RUN git checkout master && git submodule update --init && \
+    mkdir build && \
+    cd build && \
+    cmake -DBUILD_STUBBY=ON .. && \
+    make && \
+    make install
+
 FROM ${FRM}:${TAG}
 ARG FRM
 ARG TAG
@@ -57,8 +83,12 @@ COPY --from=unbound /usr/local/sbin/unbound* /usr/local/sbin/
 COPY --from=unbound /usr/local/lib/libunbound* /usr/local/lib/
 COPY --from=unbound /usr/local/etc/unbound/* /usr/local/etc/unbound/
 
-RUN apt update && \
-    apt install -y bash nano curl wget stubby libssl-dev
+COPY --from=stubby_builder /usr/local/bin/stubby* /usr/local/bin/
+
+RUN apt-get update && \
+    apt-get install -y bash nano curl wget libssl-dev && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 ADD scripts /temp
 
