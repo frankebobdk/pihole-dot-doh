@@ -59,9 +59,21 @@ RUN apt-get update && apt-get install -y \
     libev-dev \
     libssl-dev \
     libunbound-dev \
-    libuv1-dev:amd64
+    libuv1-dev:amd64 \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN useradd -M stubby && usermod -L stubby && usermod -a -G stubby stubby
+
+# Install CMake 3.20
+WORKDIR /tmp
+RUN wget https://github.com/Kitware/CMake/releases/download/v3.20.0/cmake-3.20.0.tar.gz && \
+    tar -zxvf cmake-3.20.0.tar.gz && \
+    cd cmake-3.20.0 && \
+    ./bootstrap && \
+    make -j$(nproc) && \
+    make install && \
+    rm -rf /tmp/cmake-3.20.0.tar.gz /tmp/cmake-3.20.0
 
 RUN git clone https://github.com/getdnsapi/getdns.git /tmp/getdns
 WORKDIR /tmp/getdns
