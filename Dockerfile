@@ -11,7 +11,7 @@ WORKDIR /tmp/src
 
 RUN build_deps="curl gcc libc-dev libevent-dev libexpat1-dev libnghttp2-dev make libssl-dev" && \
     set -x && \
-    apt-get update && apt-get install -y --no-install-recommends \
+    DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y --no-install-recommends \
       $build_deps \
       bsdmainutils \
       ca-certificates \
@@ -46,45 +46,6 @@ RUN build_deps="curl gcc libc-dev libevent-dev libexpat1-dev libnghttp2-dev make
         /var/tmp/* \
         /var/lib/apt/lists/*
 
-FROM debian:bullseye as stubby_builder
-
-RUN apt-get update && apt-get install -y \
-    libyaml-dev \
-    libuv1-dev \
-    check \
-    git \
-    cmake \
-    libidn2-dev \
-    libsystemd-dev \
-    libev-dev \
-    libssl-dev \
-    libunbound-dev \
-    libuv1-dev:amd64 \
-    wget \
-    g++ \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN useradd -M stubby && usermod -L stubby && usermod -a -G stubby stubby
-
-# Install CMake 3.20
-WORKDIR /tmp
-RUN wget https://github.com/Kitware/CMake/releases/download/v3.20.0/cmake-3.20.0.tar.gz && \
-    tar -zxvf cmake-3.20.0.tar.gz && \
-    cd cmake-3.20.0 && \
-    ./bootstrap -- -DCMAKE_CXX_FLAGS=-std=c++11 && \
-    make -j$(nproc) && \
-    make install && \
-    rm -rf /tmp/cmake-3.20.0.tar.gz /tmp/cmake-3.20.0
-
-RUN git clone https://github.com/getdnsapi/getdns.git /tmp/getdns
-WORKDIR /tmp/getdns
-RUN git checkout master && git submodule update --init && \
-    mkdir build && \
-    cd build && \
-    cmake -DBUILD_STUBBY=ON .. && \
-    make && \
-    make install
-
 FROM ${FRM}:${TAG}
 ARG FRM
 ARG TAG
@@ -96,20 +57,26 @@ COPY --from=unbound /usr/local/sbin/unbound* /usr/local/sbin/
 COPY --from=unbound /usr/local/lib/libunbound* /usr/local/lib/
 COPY --from=unbound /usr/local/etc/unbound/* /usr/local/etc/unbound/
 
-COPY --from=stubby_builder /usr/local/bin/stubby* /usr/local/bin/
+RUN apt update && \
+    apt install -y bash nano curl wget libssl-dev git build-essential autoconf libtool
 
-RUN apt-get update && \
-    apt-get install -y bash nano curl wget libssl-dev && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+# Clone the getdns repository and build stubby
+RUN git clone https://github.com/getdnsapi/getdns.git && \
+    cd getdns && \
+    git checkout master && \
+    git submodule update --init && \
+    libtoolize -ci && \
+    autoreconf -fi && \
+    mkdir build && \
+    cd build && \
+    ../configure --prefix=/usr/local --without-libidn --without-libidn2 --enable-stub-only --with-ssl=/usr/local/ssl --with-stubby && \
+    make && \
+    make install
 
-ADD scripts /temp
+# Clean up
+RUN rm -rf /getdns
 
 RUN groupadd unbound \
     && useradd -g unbound unbound \
-    && /bin/bash /temp/install.sh \
-    && rm -rf /temp/install.sh 
-
-VOLUME ["/config"]
-
-RUN echo "$(date "+%d.%m.%Y %T")
+    && mkdir -p /usr/local/etc/stubby \
+    && echo "$(date "+%d.%m.%Y %T") Built from ${FRM} with tag ${TAG}" >> /build_date.info
