@@ -48,16 +48,21 @@ RUN build_deps="curl gcc libc-dev libevent-dev libexpat1-dev libnghttp2-dev make
 
 FROM debian:buster as stubby_builder
 
-RUN apt-get update && apt-get install -y libyaml-dev libssl-dev libtool-bin autoconf git make && \
+RUN apt-get update && apt-get install -y libyaml-dev libssl-dev libtool-bin autoconf make && \
         apt-get clean && \
         rm -rf /var/lib/apt/lists/*
 
-RUN git clone https://github.com/getdnsapi/getdns.git
+WORKDIR /tmp/src
 
-WORKDIR getdns
+# Download getdns source code tarball
+RUN curl -sSL https://github.com/getdnsapi/getdns/archive/v1.7.2.tar.gz -o getdns.tar.gz && \
+    tar -xzvf getdns.tar.gz && \
+    mv getdns-1.7.2 getdns
 
-RUN git submodule update --init && git checkout v1.7.2 && libtoolize -ci && autoreconf -fi && mkdir build
-WORKDIR build
+WORKDIR /tmp/src/getdns
+
+RUN libtoolize -ci && autoreconf -fi && mkdir build
+WORKDIR /tmp/src/getdns/build
 RUN ../configure --without-libidn --without-libidn2 --enable-stub-only --with-stubby && make && make install && ldconfig
 
 FROM ${FRM}:${TAG}
