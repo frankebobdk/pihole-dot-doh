@@ -56,10 +56,7 @@ RUN git clone https://github.com/getdnsapi/getdns.git
 
 WORKDIR getdns
 
-# Check out a specific tag or commit
-RUN git checkout v1.7.2
-
-RUN git submodule update --init && libtoolize -ci && autoreconf -fi && mkdir build
+RUN git submodule update --init && git checkout v1.7.2 && libtoolize -ci && autoreconf -fi && mkdir build
 WORKDIR build
 RUN ../configure --without-libidn --without-libidn2 --enable-stub-only --with-stubby && make && make install && ldconfig
 
