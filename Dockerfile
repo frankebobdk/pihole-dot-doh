@@ -46,6 +46,20 @@ RUN build_deps="curl gcc libc-dev libevent-dev libexpat1-dev libnghttp2-dev make
         /var/tmp/* \
         /var/lib/apt/lists/*
 
+FROM debian:buster as stubby_builder
+
+RUN apt-get update && apt-get install -y libyaml-dev libssl-dev libtool-bin autoconf git make && \
+        apt-get clean && \
+        rm -rf /var/lib/apt/lists/*
+
+RUN git clone https://github.com/getdnsapi/getdns.git
+
+WORKDIR getdns
+
+RUN git checkout master && git submodule update --init && libtoolize -ci && autoreconf -fi && mkdir build
+WORKDIR build
+RUN ../configure --without-libidn --without-libidn2 --enable-stub-only --with-stubby && make && make install && ldconfig
+
 FROM ${FRM}:${TAG}
 ARG FRM
 ARG TAG
@@ -57,8 +71,10 @@ COPY --from=unbound /usr/local/sbin/unbound* /usr/local/sbin/
 COPY --from=unbound /usr/local/lib/libunbound* /usr/local/lib/
 COPY --from=unbound /usr/local/etc/unbound/* /usr/local/etc/unbound/
 
+COPY --from=stubby_builder /usr/local/etc/stubby/stubby.yml /usr/local/etc/stubby/stubby.yml
+
 RUN apt update && \
-    apt install -y bash nano curl wget stubby libssl-dev
+    apt install -y bash nano curl wget libssl-dev
 
 ADD scripts /temp
 
