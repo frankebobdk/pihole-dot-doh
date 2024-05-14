@@ -52,7 +52,10 @@ jobs:
         with:
           context: .
           platforms: |
+            linux/arm64
             linux/amd64
+            linux/arm/v8
+            linux/arm/v7
           push: true
           provenance: false
           tags: |
