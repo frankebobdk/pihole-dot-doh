@@ -2,6 +2,9 @@
 
 All major changes to this project will be documented here.
 
+## 2024-05-16
+- Updated Cloudflared to version 2024.5.0
+
 ## 2024-05-08
 - Updated Unbound to version 1.20.0
 
