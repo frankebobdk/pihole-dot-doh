@@ -42,3 +42,6 @@ Mount `/config` volume with:
 ```
 Internet → Pi-hole (port 53) → Unbound → Redis Cache → Root DNS Servers
 ```
+## License
+
+MIT
