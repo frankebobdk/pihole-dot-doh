@@ -1,72 +1,135 @@
-ARG FRM='pihole/pihole'
-ARG TAG='latest'
+# =========================
+# Stage 1: build Unbound
+# =========================
+FROM alpine:3.22 AS unbound-build
 
-FROM debian:bullseye as unbound
+ARG UNBOUND_VERSION=1.24.1
 
-ARG UNBOUND_VERSION=1.20.0
-ARG UNBOUND_SHA256=56b4ceed33639522000fd96775576ddf8782bb3617610715d7f1e777c5ec1dbf
-ARG UNBOUND_DOWNLOAD_URL=https://nlnetlabs.nl/downloads/unbound/unbound-1.20.0.tar.gz
+RUN apk update && apk upgrade && \
+    apk add --no-cache \
+        build-base \
+        openssl-dev \
+        expat-dev \
+        libcap-dev \
+        libevent-dev \
+        hiredis-dev \
+        perl \
+        linux-headers \
+        curl \
+        ca-certificates
 
-WORKDIR /tmp/src
-
-RUN build_deps="curl gcc libc-dev libevent-dev libexpat1-dev libnghttp2-dev make libssl-dev" && \
-    set -x && \
-    DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y --no-install-recommends \
-      $build_deps \
-      bsdmainutils \
-      ca-certificates \
-      ldnsutils \
-      libevent-2.1-7 \
-      libexpat1 \
-      libprotobuf-c-dev \
-      protobuf-c-compiler && \
-    curl -sSL $UNBOUND_DOWNLOAD_URL -o unbound.tar.gz && \
-    echo "${UNBOUND_SHA256} *unbound.tar.gz" | sha256sum -c - && \
-    tar xzf unbound.tar.gz && \
-    rm -f unbound.tar.gz && \
-    cd unbound-${UNBOUND_VERSION} && \
-    groupadd unbound && \
-    useradd -g unbound -s /dev/null -d /etc unbound && \
+RUN curl -L "https://nlnetlabs.nl/downloads/unbound/unbound-${UNBOUND_VERSION}.tar.gz" -o /tmp/unbound.tar.gz && \
+    tar -xzf /tmp/unbound.tar.gz -C /tmp && \
+    cd /tmp/unbound-${UNBOUND_VERSION} && \
     ./configure \
-        --disable-dependency-tracking \
-        --with-pthreads \
-        --with-username=unbound \
+        --with-libhiredis \
+        --with-libexpat=/usr \
         --with-libevent \
-        --with-libnghttp2 \
-        --enable-dnstap \
-        --enable-tfo-server \
-        --enable-tfo-client \
-        --enable-event-api \
-        --enable-subnet && \
-    make -j$(nproc) install && \
-    apt-get purge -y --auto-remove \
-      $build_deps && \
-    rm -rf \
-        /tmp/* \
-        /var/tmp/* \
-        /var/lib/apt/lists/*
+        --enable-cachedb \
+        --disable-flto \
+        --disable-shared \
+        --disable-rpath \
+        --with-pthreads \
+        --prefix=/usr \
+        --sysconfdir=/etc \
+        --mandir=/usr/share/man \
+        --localstatedir=/var && \
+    make -j"$(nproc)" && make install DESTDIR=/tmp/unbound-out
 
-FROM ${FRM}:${TAG}
-ARG FRM
-ARG TAG
-ARG TARGETPLATFORM
+# =========================
+# Stage 2: final (Pi-hole)
+# =========================
+FROM pihole/pihole:latest
 
-RUN mkdir -p /usr/local/etc/unbound
+# Pi-hole image er Alpine + s6-overlay
+# Installer runtime afhængigheder og Redis
+RUN apk update && apk upgrade && \
+    apk add --no-cache \
+        hiredis \
+        redis \
+        libevent \
+        libcap \
+        libexpat \
+        openssl \
+        curl \
+        nano
 
-COPY --from=unbound /usr/local/sbin/unbound* /usr/local/sbin/
-COPY --from=unbound /usr/local/lib/libunbound* /usr/local/lib/
-COPY --from=unbound /usr/local/etc/unbound/* /usr/local/etc/unbound/
+# Kopiér Unbound fra build-stage
+COPY --from=unbound-build /tmp/unbound-out/ /
 
-RUN apt update && \
-    apt install -y bash nano curl wget stubby libssl-dev
+# Opret dirs til logs/konfig
+RUN mkdir -p /config /config_default /var/log/unbound /var/log/pihole && \
+    chmod 755 /config_default /var/log/unbound /var/log/pihole
 
-ADD scripts /temp
+# --- Konfigurationsseeding (dine filer) ---
+COPY config/ /config_default/
+RUN chmod -R 755 /config_default && \
+    find /config_default -type d -exec chmod 755 {} \;
 
-RUN groupadd unbound \
-    && useradd -g unbound unbound \
-    && /bin/bash /temp/install.sh \
-    && rm -rf /temp/install.sh 
+# --- s6 services for Redis og Unbound ---
+# Redis service
+RUN mkdir -p /etc/services.d/redis
+COPY --chown=root:root <<'EOF' /etc/services.d/redis/run
+#!/usr/bin/execlineb -P
+with-contenv
+s6-setuidgid root
+redis-server /config/redis/redis.conf
+EOF
+RUN chmod +x /etc/services.d/redis/run
 
-VOLUME ["/config"]
+# Unbound service
+RUN mkdir -p /etc/services.d/unbound
+COPY --chown=root:root <<'EOF' /etc/services.d/unbound/run
+#!/usr/bin/execlineb -P
+with-contenv
+s6-setuidgid root
+unbound -d -c /config/unbound/unbound.conf
+EOF
+RUN chmod +x /etc/services.d/unbound/run
 
-RUN echo "$(date "+%d.%m.%Y %T") Built from ${FRM} with tag ${TAG}" >> /build_date.info
+# (valgfrit) simple finish-scripts så s6 restarter ved exit
+COPY --chown=root:root <<'EOF' /etc/services.d/unbound/finish
+#!/bin/sh
+exit 0
+EOF
+RUN chmod +x /etc/services.d/unbound/finish
+
+COPY --chown=root:root <<'EOF' /etc/services.d/redis/finish
+#!/bin/sh
+exit 0
+EOF
+RUN chmod +x /etc/services.d/redis/finish
+
+# Dit init-script kan stadig bruges til at kopiere defaults første gang
+COPY init-config.sh /usr/local/bin/init-config.sh
+RUN chmod +x /usr/local/bin/init-config.sh
+
+# Kør init-config.sh ved container start via s6 'cont-init.d'
+RUN mkdir -p /etc/cont-init.d
+COPY --chown=root:root <<'EOF' /etc/cont-init.d/10-init-config
+#!/usr/bin/execlineb -P
+with-contenv
+/usr/local/bin/init-config.sh
+EOF
+RUN chmod +x /etc/cont-init.d/10-init-config
+
+# Eksponer relevante porte
+EXPOSE 53/tcp 53/udp 67/udp 68/udp 80/tcp 443/tcp
+
+# Pi-hole v6 styres via FTLCONF_* (upstream = lokal Unbound; DNSSEC off i FTL)
+ENV TZ="Europe/Copenhagen" \
+    FTLCONF_dns_upstreams="127.0.0.1#5335" \
+    FTLCONF_dns_listeningMode="all" \
+    FTLCONF_dns_dnssec="false" \
+    FTLCONF_webserver_port="80" \
+    FTLCONF_webserver_tls="true" \
+    # Sæt et stærkt pwd i runtime (compose secrets/vars)
+    FTLCONF_webserver_api_password="CHANGE_ME" \
+    # Lad Unbound/Redis håndtere caching (valgfrit at nulstille FTL-cache)
+    FTLCONF_dns_cache_size="0"
+
+# HEALTHCHECK – mod HTTP UI (tilpas til https hvis du håndhæver TLS)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+  CMD curl -fsS http://localhost:80/admin/ > /dev/null || exit 1
+
+# VIGTIGT: behold Pi-hole's ENTRYPOINT/CMD (s6 init). Ingen CMD override her.
