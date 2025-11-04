@@ -1,9 +1,13 @@
 name: Image build
 
 on:
-  schedule:
-      - cron:  '0 * * * *'
   workflow_dispatch:
+    inputs:
+      debug:
+        description: 'Enable debug output'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   check:
