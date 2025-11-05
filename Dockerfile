@@ -110,6 +110,13 @@ ENV XDG_CONFIG_HOME=/config \
 #        unbound-control status || exit 1
 
 # Kopiér hooket ind og giv exec-rettigheder
-COPY after-pihole-start.sh /usr/local/bin/after-pihole-start.sh
-RUN chmod +x /usr/local/bin/after-pihole-start.sh \
-    && sed -i '/exec .*pihole-FTL/i /usr/local/bin/after-pihole-start.sh \&' /usr/bin/start.sh
+RUN set -eux; \
+    chmod +x /usr/local/bin/after-pihole-start.sh; \
+    # fjern evt. CRLF
+    sed -i 's/\r$//' /usr/local/bin/after-pihole-start.sh; \
+    # find den faktiske start.sh
+    START_SH="$(command -v start.sh)"; \
+    echo "Using start script: $START_SH"; \
+    # indsæt hook lige efter shebang (linje 1)
+    sed -i '1a /usr/local/bin/after-pihole-start.sh \&' "$START_SH"; \
+    grep -n 'after-pihole-start.sh' "$START_SH"
