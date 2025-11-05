@@ -104,13 +104,12 @@ ENV XDG_CONFIG_HOME=/config \
     PATH="/usr/local/bin:$PATH"
 
 # Add healthcheck
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:80/admin/ && \
-        redis-cli ping && \
-        unbound-control status || exit 1
+#HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+#    CMD curl -f http://localhost:80/admin/ && \
+#        redis-cli ping && \
+#        unbound-control status || exit 1
 
-# Override Pi-hole's entrypoint to start our services
-CMD ["/bin/sh", "-c", "set -e; \
-    /usr/local/bin/init-config.sh && \
-    redis-server /config/redis/redis.conf & \
-    exec unbound -d -c /config/unbound/unbound.conf"]
+# Kopiér hooket ind og giv exec-rettigheder
+COPY after-pihole-start.sh /usr/local/bin/after-pihole-start.sh
+RUN chmod +x /usr/local/bin/after-pihole-start.sh \
+    && sed -i '/exec .*pihole-FTL/i /usr/local/bin/after-pihole-start.sh \&' /usr/bin/start.sh
