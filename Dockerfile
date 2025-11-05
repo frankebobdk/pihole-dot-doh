@@ -113,4 +113,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
 CMD ["/bin/sh", "-c", "set -e; \
     /usr/local/bin/init-config.sh && \
     redis-server /config/redis/redis.conf & \
-    unbound -d -c /config/unbound/unbound.conf"]
+    exec unbound -d -c /config/unbound/unbound.conf"]
