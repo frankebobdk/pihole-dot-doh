@@ -3,7 +3,7 @@
 # =========================
 FROM alpine:3.22 AS unbound-build
 
-ARG UNBOUND_VERSION=1.24.1
+ARG UNBOUND_VERSION=1.24.2
 
 # Build Unbound in single optimized layer
 RUN apk update && apk upgrade && \
