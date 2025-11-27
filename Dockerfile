@@ -39,6 +39,9 @@ RUN apk update && apk upgrade && \
         --localstatedir=/var && \
     make -j"$(nproc)" && \
     make install DESTDIR=/tmp/unbound-out && \
+    # Fjern default Unbound configs så kun vores custom config bruges
+    rm -rf /tmp/unbound-out/etc/unbound \
+           /tmp/unbound-out/usr/etc/unbound 2>/dev/null || true && \
     cd .. && rm -rf "unbound-${UNBOUND_VERSION}" unbound.tar.gz
 
 # =========================
@@ -46,7 +49,7 @@ RUN apk update && apk upgrade && \
 # =========================
 FROM pihole/pihole:latest
 
-ARG UNBOUND_VERSION=1.24.1
+ARG UNBOUND_VERSION=1.24.2
 
 # Install runtime deps (Alpine-based Pi-hole image)
 RUN apk update && apk upgrade && \
