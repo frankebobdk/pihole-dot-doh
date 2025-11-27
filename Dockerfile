@@ -3,7 +3,7 @@
 # =========================
 FROM alpine:3.22 AS unbound-build
 
-ARG UNBOUND_VERSION=1.24.1
+ARG UNBOUND_VERSION=1.24.2
 
 # Build Unbound in single optimized layer
 RUN apk update && apk upgrade && \
@@ -46,7 +46,7 @@ RUN apk update && apk upgrade && \
 # =========================
 FROM pihole/pihole:latest
 
-ARG UNBOUND_VERSION=1.24.1
+ARG UNBOUND_VERSION=1.24.2
 
 # Install runtime deps (Alpine-based Pi-hole image)
 RUN apk update && apk upgrade && \
