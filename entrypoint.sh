@@ -62,6 +62,18 @@ fi
 echo "[ENTRYPOINT] Starting Unbound..."
 unbound -d -c /config/unbound/unbound.conf &
 
+# Wait for Unbound to accept connections (max 10s)
+WAIT=0
+while ! dig @127.0.0.1 -p 5335 +time=1 +tries=1 ch version.bind txt >/dev/null 2>&1 && [ $WAIT -lt 100 ]; do
+    sleep 0.1
+    WAIT=$((WAIT + 1))
+done
+if [ $WAIT -lt 100 ]; then
+    echo "[ENTRYPOINT] Unbound is ready."
+else
+    echo "[ENTRYPOINT] WARNING: Unbound not responding after 10s, continuing anyway..."
+fi
+
 # --- 5. Start Pi-hole (exec replaces shell — Pi-hole becomes main process under tini) ---
 PIHOLE_START="$(cat /etc/pihole-start-path)"
 echo "[ENTRYPOINT] Starting Pi-hole via $PIHOLE_START..."
