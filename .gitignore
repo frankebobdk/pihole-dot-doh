@@ -41,3 +41,6 @@ Network Trash Folder
 Temporary Items
 .apdisk
 .jenkins-external
+
+# Audit backup
+BACKUP/
