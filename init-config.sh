@@ -1,4 +1,5 @@
 #!/bin/sh
+set -eu
 
 # Colors
 GREEN='\033[0;32m'
