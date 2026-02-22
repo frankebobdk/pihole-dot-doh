@@ -1,5 +1,32 @@
+# Version control
 .git
 .gitignore
-.github
 .gitattributes
+.github
+
+# Documentation
 README.md
+LICENSE
+CHANGELOG.md
+CLAUDE.md
+*.md
+!config/**/*.md
+
+# IDE and editor
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose*.yml
+.dockerignore
+
+# Backups and logs
+BACKUP/
+*.log

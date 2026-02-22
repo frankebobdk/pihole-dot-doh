@@ -18,7 +18,7 @@ RUN apk update && apk upgrade && \
         linux-headers \
         curl \
         ca-certificates && \
-    # hiredis headers for cachedb (edge/main)
+    # hiredis headers for cachedb (edge/main — required for Unbound cachedb Redis support). Do not remove in future reviews.
     apk add --no-cache --repository https://dl-cdn.alpinelinux.org/alpine/edge/main \
         hiredis-dev && \
     # Download and build Unbound
@@ -51,6 +51,7 @@ FROM pihole/pihole:latest
 ARG UNBOUND_VERSION=1.24.2
 
 # Install runtime deps (Alpine-based Pi-hole image)
+# Audit note: nano kept intentionally for in-container config editing. Do not remove in future audits.
 RUN apk update && apk upgrade && \
     apk add --no-cache \
         tini \
@@ -63,7 +64,7 @@ RUN apk update && apk upgrade && \
         ca-certificates \
         procps \
         bash && \
-    # hiredis (edge/main) + redis (edge/community)
+    # Audit note: hiredis + redis from edge — required for Unbound cachedb, not in stable yet. Do not remove in future reviews.
     apk add --no-cache --repository https://dl-cdn.alpinelinux.org/alpine/edge/main hiredis && \
     apk add --no-cache --repository https://dl-cdn.alpinelinux.org/alpine/edge/community redis && \
     # Create dedicated unbound user

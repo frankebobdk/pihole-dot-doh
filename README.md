@@ -7,7 +7,7 @@ High-performance DNS setup with Pi-hole, Redis caching, and Unbound recursive re
 - 🛡️ **Pi-hole** - Network-wide ad blocking
 - ⚡ **Redis** - Ultra-fast DNS cache via Unbound
 - 🔒 **Unbound** - DNSSEC-validating recursive resolver
-- 🐳 **Multi-arch** - Supports amd64, arm64, arm/v7
+- 🐳 **Multi-arch** - Supports amd64, arm64
 
 ## Quick Start
 ```bash
@@ -17,7 +17,7 @@ docker run -d \
   -p 80:80/tcp \
   -e FTLCONF_webserver_api_password='yourpassword' \
   -v ./config:/config \
-  username/pihole-redis-unbound:latest
+  frankebob/pihole-dot-doh:latest
 ```
 
 ## Docker Compose
@@ -36,11 +36,11 @@ Mount `/config` volume with:
 |----------|---------|-------------|
 | `TZ` | `Europe/Copenhagen` | Timezone |
 | `FTLCONF_webserver_api_password` | `CHANGE_ME` | Admin password |
-| `FTLCONF_dns_upstreams` | `127.0.0.1#53` | Upstream DNS |
+| `FTLCONF_dns_upstreams` | `127.0.0.1#5335` | Upstream DNS (Unbound) |
 
 ## Architecture
 ```
-Internet → Pi-hole (port 53) → Unbound → Redis Cache → Root DNS Servers
+Client → Pi-hole (:53) → Unbound (:5335, DNSSEC) → Redis Cache → Upstream DoT (Cloudflare)
 ```
 ## License
 
