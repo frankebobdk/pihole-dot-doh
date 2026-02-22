@@ -45,6 +45,7 @@ RUN apk update && apk upgrade && \
 # =========================
 # Stage 2: Pi-hole with Redis and Unbound
 # =========================
+# TODO: Pin to a specific Pi-hole version tag for reproducible builds
 FROM pihole/pihole:latest
 
 ARG UNBOUND_VERSION=1.24.2
@@ -72,6 +73,7 @@ RUN apk update && apk upgrade && \
     chown -R unbound:unbound /etc/unbound && \
     # Folders
     mkdir -p /config /config_default /var/log/unbound /var/log/pihole && \
+    chown -R unbound:unbound /var/log/unbound && \
     chmod 755 /config_default /var/log/unbound /var/log/pihole && \
     rm -rf /var/cache/apk/* /tmp/* /var/tmp/*
 
@@ -83,7 +85,8 @@ COPY --from=unbound-build /tmp/unbound-out/usr/sbin/unbound-control /usr/sbin/un
 
 # Copy default config payload
 COPY config/ /config_default/
-RUN chmod -R 755 /config_default && find /config_default -type d -exec chmod 755 {} \;
+RUN find /config_default -type d -exec chmod 755 {} \; && \
+    find /config_default -type f -exec chmod 644 {} \;
 
 # Init script (idempotent copy of defaults on first run)
 COPY init-config.sh /usr/local/bin/init-config.sh
@@ -105,13 +108,9 @@ RUN set -eux; \
     [ -n "$START_SH" ] || (echo "start.sh not found in image" >&2; exit 1); \
     echo "$START_SH" > /etc/pihole-start-path
 
-# Networking (no 6379/tcp — Redis uses Unix socket only)
-EXPOSE \
-    53/tcp 53/udp \
-    67/udp 68/udp \
-    80/tcp 443/tcp 443/udp \
-    853/tcp 853/udp 5443/tcp 5443/udp \
-    5053/tcp
+# Networking — only ports the container actually serves
+# Redis uses Unix socket (no TCP), DoT/DoH proxies not included
+EXPOSE 53/tcp 53/udp 80/tcp 443/tcp
 
 # Runtime env
 ENV XDG_CONFIG_HOME=/config \

@@ -22,6 +22,7 @@ if [ "$ANCHOR_EXIT" -gt 1 ]; then
     echo "[ENTRYPOINT] FATAL: unbound-anchor failed (exit $ANCHOR_EXIT). Exiting."
     exit 1
 fi
+chown unbound:unbound "$ROOT_KEY_FILE"
 echo "[ENTRYPOINT] DNSSEC root trust anchor ready (exit $ANCHOR_EXIT)."
 
 # --- 3. Start Redis (--daemonize no overrides config, fixes double-fork zombie) ---

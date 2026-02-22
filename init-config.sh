@@ -13,19 +13,19 @@ mkdir -p /config/redis /config/unbound /config/unbound/unbound.conf.d
 
 # Copy Redis configuration if volume is empty
 if [ -z "$(ls -A /config/redis 2>/dev/null)" ]; then
-    echo -e "${BLUE}[INIT]${NC} Copying Redis default configuration..."
+    printf "${BLUE}[INIT]${NC} Copying Redis default configuration...\n"
     cp -r /config_default/redis/* /config/redis/
 fi
 
 # Copy Unbound configuration
 # Check for NEW users (main config file is missing)
 if [ ! -f "/config/unbound/unbound.conf" ]; then
-    echo -e "${BLUE}[INIT]${NC} Copying Unbound default configuration (new user)..."
+    printf "${BLUE}[INIT]${NC} Copying Unbound default configuration (new user)...\n"
     cp -r /config_default/unbound/* /config/unbound/
 
 # Handle EXISTING users (main config exists) — add new files on upgrade
 else
-    echo -e "${BLUE}[INIT]${NC} Existing Unbound configuration found. Checking for upgrades..."
+    printf "${BLUE}[INIT]${NC} Existing Unbound configuration found. Checking for upgrades...\n"
 
     # Manifest of config files that should be auto-added on upgrade.
     # Add new default .conf.d files here as they are introduced.
@@ -37,13 +37,19 @@ else
 
         # Only copy if source exists and destination does not
         if [ -f "$src_file" ] && [ ! -f "$dest_file" ]; then
-            echo -e "${BLUE}[INIT]${NC} Adding new default config file: $file_name..."
+            printf "${BLUE}[INIT]${NC} Adding new default config file: %s...\n" "$file_name"
             cp "$src_file" "$dest_file"
         fi
     done
 fi
 
-# --- 3. Set Permissions ---
-chown -R root:root /config
+# --- 3. Set Permissions (skip on subsequent boots) ---
+MARKER="/config/.ownership-set"
+if [ ! -f "$MARKER" ]; then
+    chown -R root:root /config
+    touch "$MARKER"
+else
+    printf "${BLUE}[INIT]${NC} File ownership already set, skipping.\n"
+fi
 
-echo -e "${GREEN}[INIT]${NC} Configuration initialization completed."
+printf "${GREEN}[INIT]${NC} Configuration initialization completed.\n"
