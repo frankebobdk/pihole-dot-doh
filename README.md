@@ -14,9 +14,10 @@ High-performance DNS setup with Pi-hole, Redis caching, and Unbound recursive re
 docker run -d \
   --name pihole \
   -p 53:53/tcp -p 53:53/udp \
-  -p 80:80/tcp \
+  -p 80:80/tcp -p 443:443/tcp \
   -e FTLCONF_webserver_api_password='yourpassword' \
   -v ./config:/config \
+  -v redis-data:/var/lib/redis \
   frankebob/pihole-dot-doh:latest
 ```
 

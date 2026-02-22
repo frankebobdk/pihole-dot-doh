@@ -1,7 +1,8 @@
 #!/bin/sh
 set -eu
 
-# Colors
+# Audit decision: ANSI color codes kept intentionally for readability in interactive use.
+# Non-TTY log capture will show raw escapes — accepted trade-off. Do not flag in future audits.
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color

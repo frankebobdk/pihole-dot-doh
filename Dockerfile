@@ -47,8 +47,8 @@ RUN apk update && apk upgrade && \
 # =========================
 # TODO: Pin to a specific Pi-hole version tag for reproducible builds
 FROM pihole/pihole:latest
-
-ARG UNBOUND_VERSION=1.24.2
+LABEL org.opencontainers.image.source="https://github.com/frankebobdk/pihole-dot-doh"
+LABEL org.opencontainers.image.description="Pi-hole + Redis + Unbound DNS"
 
 # Install runtime deps (Alpine-based Pi-hole image)
 # Audit note: nano kept intentionally for in-container config editing. Do not remove in future audits.
