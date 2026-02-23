@@ -111,7 +111,7 @@ RUN set -eux; \
 
 # Networking — only ports the container actually serves
 # Redis uses Unix socket (no TCP), DoT/DoH proxies not included
-EXPOSE 53/tcp 53/udp 80/tcp 443/tcp
+EXPOSE 53/tcp 53/udp 80/tcp
 
 # Runtime env
 ENV XDG_CONFIG_HOME=/config \
