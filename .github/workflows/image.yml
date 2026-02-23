@@ -6,6 +6,11 @@ on:
       - main
     tags:
       - 'v*.*.*'
+    paths-ignore:
+      - "*.md"
+      - ".gitignore"
+      - ".dockerignore"
+      - "LICENSE"
   pull_request:
     branches:
       - main

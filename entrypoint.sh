@@ -16,18 +16,30 @@ fi
 # unbound-anchor exit codes: 0 = updated, 1 = already current (both OK), >1 = failure
 ROOT_KEY_FILE="/etc/unbound/var/root.key"
 echo "[ENTRYPOINT] Initializing DNSSEC root trust anchor at $ROOT_KEY_FILE..."
-unbound-anchor -a "$ROOT_KEY_FILE" || ANCHOR_EXIT=$?
-ANCHOR_EXIT="${ANCHOR_EXIT:-0}"
-if [ "$ANCHOR_EXIT" -gt 1 ]; then
-    echo "[ENTRYPOINT] FATAL: unbound-anchor failed (exit $ANCHOR_EXIT). Exiting."
+
+max_retries=3
+retry=0
+while [ $retry -lt $max_retries ]; do
+    rc=0; unbound-anchor -a "$ROOT_KEY_FILE" 2>/dev/null || rc=$?
+    if [ $rc -eq 0 ] || [ $rc -eq 1 ]; then
+        break
+    fi
+    retry=$((retry + 1))
+    echo "[ENTRYPOINT] DNSSEC anchor init attempt $retry/$max_retries failed (exit $rc), retrying..."
+    sleep 2
+done
+
+if [ ! -f "$ROOT_KEY_FILE" ]; then
+    echo "[ENTRYPOINT] FATAL: DNSSEC root anchor initialization failed after $max_retries attempts"
     exit 1
 fi
 chown unbound:unbound "$ROOT_KEY_FILE"
-echo "[ENTRYPOINT] DNSSEC root trust anchor ready (exit $ANCHOR_EXIT)."
+echo "[ENTRYPOINT] DNSSEC root trust anchor ready."
 
 # --- 3. Start Redis (--daemonize no overrides config, fixes double-fork zombie) ---
 echo "[ENTRYPOINT] Starting Redis..."
 redis-server /config/redis/redis.conf --daemonize no &
+REDIS_PID=$!
 
 # Wait for Redis socket to be ready (max 5s)
 WAIT=0
@@ -36,14 +48,20 @@ while [ ! -S /tmp/redis.sock ] && [ $WAIT -lt 50 ]; do
     WAIT=$((WAIT + 1))
 done
 if [ -S /tmp/redis.sock ]; then
+    if ! kill -0 "$REDIS_PID" 2>/dev/null; then
+        echo "[ENTRYPOINT] ERROR: Redis process died during startup"
+        exit 1
+    fi
     echo "[ENTRYPOINT] Redis socket ready."
 else
-    echo "[ENTRYPOINT] WARNING: Redis socket not detected after 5s, continuing anyway..."
+    echo "[ENTRYPOINT] ERROR: Redis socket not detected after 5s"
+    exit 1
 fi
 
 # --- 4. Start Unbound ---
 echo "[ENTRYPOINT] Starting Unbound..."
 unbound -d -c /config/unbound/unbound.conf &
+UNBOUND_PID=$!
 
 # Wait for Unbound to accept connections (max 10s)
 WAIT=0
@@ -52,9 +70,14 @@ while ! dig @127.0.0.1 -p 5335 +time=1 +tries=1 ch version.bind txt >/dev/null 2
     WAIT=$((WAIT + 1))
 done
 if [ $WAIT -lt 100 ]; then
+    if ! kill -0 "$UNBOUND_PID" 2>/dev/null; then
+        echo "[ENTRYPOINT] ERROR: Unbound process died during startup"
+        exit 1
+    fi
     echo "[ENTRYPOINT] Unbound is ready."
 else
-    echo "[ENTRYPOINT] WARNING: Unbound not responding after 10s, continuing anyway..."
+    echo "[ENTRYPOINT] ERROR: Unbound not responding after 10s"
+    exit 1
 fi
 
 # --- 5. Start Pi-hole (exec replaces shell — Pi-hole becomes main process under tini) ---
