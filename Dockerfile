@@ -45,7 +45,7 @@ RUN cd unbound-${UNBOUND_VERSION} && \
 
 # Build Redis
 RUN cd redis-${REDIS_VERSION} && \
-    make -j"$(nproc)" USE_SYSTEMD=no BUILD_TLS=yes && \
+    make -j"$(nproc)" USE_SYSTEMD=no BUILD_TLS=no && \
     make install PREFIX=/tmp/redis-out/usr
 
 # =========================
@@ -122,7 +122,7 @@ RUN set -eux; \
 # Networking — only ports the container actually serves
 # 53  = DNS (TCP + UDP)
 # 80  = Pi-hole web admin (HTTP)
-# 443 = Pi-hole web admin (HTTPS, reserved for future use)
+# 443 = Pi-hole web admin (HTTPS)
 EXPOSE 53/tcp 53/udp 80/tcp 443/tcp
 
 # Runtime env

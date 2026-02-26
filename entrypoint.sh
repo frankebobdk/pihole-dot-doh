@@ -20,7 +20,7 @@ echo "[ENTRYPOINT] Initializing DNSSEC root trust anchor at $ROOT_KEY_FILE..."
 max_retries=3
 retry=0
 while [ $retry -lt $max_retries ]; do
-    rc=0; unbound-anchor -a "$ROOT_KEY_FILE" 2>/dev/null || rc=$?
+    rc=0; unbound-anchor -a "$ROOT_KEY_FILE" || rc=$?
     if [ $rc -eq 0 ] || [ $rc -eq 1 ]; then
         break
     fi
@@ -29,9 +29,13 @@ while [ $retry -lt $max_retries ]; do
     sleep 2
 done
 
-if [ ! -f "$ROOT_KEY_FILE" ]; then
-    echo "[ENTRYPOINT] FATAL: DNSSEC root anchor initialization failed after $max_retries attempts"
-    exit 1
+if [ $retry -eq $max_retries ]; then
+    if [ -f "$ROOT_KEY_FILE" ]; then
+        echo "[ENTRYPOINT] WARNING: DNSSEC anchor refresh failed after $max_retries attempts (exit $rc), using existing root.key"
+    else
+        echo "[ENTRYPOINT] FATAL: DNSSEC root anchor initialization failed after $max_retries attempts"
+        exit 1
+    fi
 fi
 chown unbound:unbound "$ROOT_KEY_FILE"
 echo "[ENTRYPOINT] DNSSEC root trust anchor ready."
