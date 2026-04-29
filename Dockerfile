@@ -4,7 +4,7 @@
 ARG ALPINE_VERSION=3.23
 FROM alpine:${ALPINE_VERSION} AS builder
 
-ARG UNBOUND_VERSION=1.24.2
+ARG UNBOUND_VERSION=1.25.0
 ARG REDIS_VERSION=8.6.1
 
 # Build deps — all from stable repos, zero edge dependencies
